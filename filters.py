@@ -5,12 +5,14 @@ from typing import Union, List, Optional
 
 def Guidedfilter(p: Union[np.ndarray, pd.Series],
                  I: Optional[Union[np.ndarray, pd.Series]] = None,
+                 w: int = 31,
                  eps: int = 1000) -> Union[int, float]:
     """apply guided filter from given window seq
 
     Args:
         p (Union[np.ndarray, pd.Series]): the input time series
         I (Optional[Union[np.ndarray, pd.Series]]): the guidance time series
+        w[int]: window size
         eps[int]: regularization parameter
 
     Returns:
@@ -21,18 +23,19 @@ def Guidedfilter(p: Union[np.ndarray, pd.Series],
     if isinstance(p, pd.Series):
         p = np.array(p)
         I = np.array(I)
-    mean_I = np.mean(I)
-    mean_p = np.mean(p)
-    cov_Ip = np.mean(I * p) - mean_I * mean_p
-    var_I = np.mean(I * I) - mean_I * mean_I
+    weights = 1.0 / w * np.ones(w)
+    mean_I = np.convolve(np.pad(I, (w//2, w//2), "edge"), weights, "valid")
+    mean_p = np.convolve(np.pad(p, (w//2, w//2), "edge"), weights, "valid")
+    cov_Ip = np.convolve(np.pad(I * p, (w//2, w//2), "edge"), weights, "valid") - mean_I * mean_p
+    var_I = np.convolve(np.pad(I * I, (w//2, w//2), "edge"), weights, "valid") - mean_I * mean_I
 
     A = cov_Ip / (var_I + eps)
     b = mean_p - A * mean_I
 
-    mean_A = np.mean(A)
-    mean_b = np.mean(b)
+    mean_A = np.convolve(np.pad(A, (w//2, w//2), "edge"), weights, "valid")
+    mean_b = np.convolve(np.pad(b, (w//2, w//2), "edge"), weights, "valid")
 
-    return mean_A * I[len(I) // 2] + mean_b
+    return mean_A * I + mean_b
 
 
 def apply_filter(df: pd.DataFrame, columns: List[str],
@@ -50,9 +53,8 @@ def apply_filter(df: pd.DataFrame, columns: List[str],
     """
     filter_mapping = {"guided": Guidedfilter}
     df[[f"{filter}_{col}" for col in columns]] = \
-        df[columns].rolling(
-        window_size, center=True, min_periods=1
-        ).apply(filter_mapping[filter])
+        df[columns].apply(
+        lambda x: filter_mapping[filter](x, w=window_size))
     
     return df
 
