@@ -3,21 +3,39 @@ import pandas as pd
 from typing import Union, List, Optional
 
 
-def Guidedfilter(p: Union[np.ndarray, pd.Series],
-                 I: Optional[Union[np.ndarray, pd.Series]] = None,
-                 w: int = 31,
-                 eps: int = 1000) -> Union[int, float]:
-    """apply guided filter from given window seq
+def MovingAverageFilter(p: Union[np.ndarray, pd.Series],
+                        w: int = 31) -> np.ndarray:
+    """Apply moving average filter to given seq
 
     Args:
         p (Union[np.ndarray, pd.Series]): the input time series
-        I (Optional[Union[np.ndarray, pd.Series]]): the guidance time series
-        w[int]: window size
-        eps[int]: regularization parameter
+        w (int, optional): window size. Defaults to 31.
 
     Returns:
-        Union[int, float]: guided filtered value
+        np.ndarray: moving average filtered seq
     """
+    weights = 1.0 / w * np.ones(w)
+    mean_p = np.convolve(np.pad(p, (w-1), "edge"), weights, "valid")
+
+    return mean_p
+
+
+def Guidedfilter(p: Union[np.ndarray, pd.Series],
+                 I: Optional[Union[np.ndarray, pd.Series]] = None,
+                 w: int = 31,
+                 eps: int = 1000) -> np.ndarray:
+    """Apply guided filter to given seq
+
+    Args:
+        p (Union[np.ndarray, pd.Series]): the input time series
+        I (Optional[Union[np.ndarray, pd.Series]]): the guidance time series. Defaults to None.
+        w[int]: window size. Defaults to 31.
+        eps[int]: regularization parameter. Defaults to 1000.
+
+    Returns:
+        np.ndarray: guided filtered seq
+    """
+    assert w % 2 == 1, "window size should be odd for guided filter."
     if I is None:
         I = p
     if isinstance(p, pd.Series):
@@ -39,25 +57,29 @@ def Guidedfilter(p: Union[np.ndarray, pd.Series],
 
 
 def apply_filter(df: pd.DataFrame, columns: List[str],
-                 filter: str, window_size: int) -> pd.DataFrame:
+                 filter_method: Union[List[str], str], window_size: int) -> pd.DataFrame:
     """Apply filter to dataframe
 
     Args:
         df (pd.DataFrame): dataframe to apply filter
         columns (List[str]): columns to apply filter
-        filter (str): type of filter
+        filter_method (Union[List[str], str]): type of filter
         window_size (int): window size of filter
 
     Returns:
         pd.DataFrame: dataframe with filtered column
     """
-    filter_mapping = {"guided": Guidedfilter}
-    df[[f"{filter}_{col}" for col in columns]] = \
-        df[columns].apply(
-        lambda x: filter_mapping[filter](x, w=window_size))
+    filter_mapping = {"guided": Guidedfilter,
+                      "moving_average": MovingAverageFilter,}
+    if isinstance(filter_method, str):
+        filter_method = [filter_method]
+    for filter_name in filter_method:
+        df[[f"{filter_name}_{col}" for col in columns]] = \
+            df[columns].apply(
+            lambda x: filter_mapping[filter_name](x, w=window_size))
     
     return df
 
 if __name__ == "__main__":
     df = pd.read_csv('./data/kospi.csv')
-    df = apply_filter(df, columns=["close"], filter="guided", window_size=31)
+    df = apply_filter(df, columns=["close"], filter_method="guided", window_size=31)
