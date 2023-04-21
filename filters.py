@@ -1,25 +1,30 @@
 import numpy as np
 import pandas as pd
-from typing import Union, List
+from typing import Union, List, Optional
 
 
-def Guidedfilter(seq: Union[np.ndarray, pd.Series]) -> Union[int, float]:
+def Guidedfilter(p: Union[np.ndarray, pd.Series],
+                 I: Optional[Union[np.ndarray, pd.Series]] = None,
+                 eps: int = 1000) -> Union[int, float]:
     """apply guided filter from given window seq
 
     Args:
-        seq (Union[np.ndarray, pd.Series]): seq to apply guided filter
+        p (Union[np.ndarray, pd.Series]): the input time series
+        I (Optional[Union[np.ndarray, pd.Series]]): the guidance time series
+        eps[int]: regularization parameter
 
     Returns:
         Union[int, float]: guided filtered value
     """
-    if isinstance(seq, pd.Series):
-        seq = np.array(seq)
-    seq = seq
-    eps = 1000
-    mean_I = np.mean(seq)
-    mean_p = np.mean(seq)
-    cov_Ip = np.mean(seq * seq) - mean_I * mean_p
-    var_I = np.mean(seq * seq) - mean_I * mean_I
+    if I is None:
+        I = p
+    if isinstance(p, pd.Series):
+        p = np.array(p)
+        I = np.array(I)
+    mean_I = np.mean(I)
+    mean_p = np.mean(p)
+    cov_Ip = np.mean(I * p) - mean_I * mean_p
+    var_I = np.mean(I * I) - mean_I * mean_I
 
     A = cov_Ip / (var_I + eps)
     b = mean_p - A * mean_I
@@ -27,7 +32,7 @@ def Guidedfilter(seq: Union[np.ndarray, pd.Series]) -> Union[int, float]:
     mean_A = np.mean(A)
     mean_b = np.mean(b)
 
-    return mean_A * seq[len(seq) // 2] + mean_b
+    return mean_A * I[len(I) // 2] + mean_b
 
 
 def apply_filter(df: pd.DataFrame, columns: List[str],
