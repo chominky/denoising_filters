@@ -72,16 +72,16 @@ def BilateralFilter(p: Union[np.ndarray, pd.Series],
     RATIO = 4
     sigma_d = w / (RATIO * 2)
     p = np.pad(p, (w//2, w//2), "edge")
-    sliding_p = sliding_window_view(p, w)
     def cal_norm_pdf(array, scale):
         return norm.pdf(array, loc=array[w//2], scale=scale)
 
-    weights = np.apply_along_axis(cal_norm_pdf, 1, sliding_p, scale=sigma_d)
-    weights /= np.sum(weights, axis=1).reshape(-1, 1)
+    weights = cal_norm_pdf(np.arange(w), scale=sigma_d)
+    weights /= weights.sum()
 
     sigma_i = (p.max() - p.min()) / 100.0
+    sliding_p = sliding_window_view(p, w)
     pixel_w = np.apply_along_axis(cal_norm_pdf, 1, sliding_p, scale=sigma_i)
-    weights *= pixel_w
+    weights = weights * pixel_w
     weights /= np.sum(weights, axis=1).reshape(-1, 1)
 
     return np.sum(sliding_p * weights, axis=1)
