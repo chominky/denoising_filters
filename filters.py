@@ -22,6 +22,28 @@ def MovingAverageFilter(p: Union[np.ndarray, pd.Series],
     return mean_p
 
 
+def ExponentialMovingAverageFilter(p: Union[np.ndarray, pd.Series],
+                                   **kwargs) -> np.ndarray:
+    """Apply exponentialy weighted moving average filter to given seq
+
+    Args:
+        p (Union[np.ndarray, pd.Series]): the input time series.
+
+    Returns:
+        np.ndarray: exponentialy weighted moving average filtered seq
+    """
+    alpha = 0.1
+    n = p.size
+
+    # Calculate the ewma using the dot product
+    ewma = np.zeros(n)
+    ewma[0] = p[0]
+    for i in range(1, n):
+        ewma[i] = alpha * p[i] + (1 - alpha) * ewma[i - 1]
+
+    return ewma
+
+
 def Guidedfilter(p: Union[np.ndarray, pd.Series],
                  I: Optional[Union[np.ndarray, pd.Series]] = None,
                  w: int = 31,
@@ -103,7 +125,9 @@ def apply_filter(df: pd.DataFrame, columns: List[str],
     """
     filter_mapping = {"guided": Guidedfilter,
                       "bilateral": BilateralFilter,
-                      "moving_average": MovingAverageFilter,}
+                      "moving_average": MovingAverageFilter,
+                      "exponential_moving_average": ExponentialMovingAverageFilter,}
+    
     if isinstance(filter_method, str):
         filter_method = [filter_method]
     for filter_name in filter_method:
