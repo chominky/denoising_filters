@@ -3,6 +3,9 @@ from numpy.lib.stride_tricks import sliding_window_view
 import pandas as pd
 from scipy.stats import norm
 from typing import Union, List, Optional
+from pandas_datareader import data as pdr
+import yfinance as yf
+yf.pdr_override()
 
 
 def MovingAverageFilter(p: Union[np.ndarray, pd.Series],
@@ -17,7 +20,7 @@ def MovingAverageFilter(p: Union[np.ndarray, pd.Series],
         np.ndarray: moving average filtered seq
     """
     weights = 1.0 / w * np.ones(w)
-    mean_p = np.convolve(np.pad(p, (w-1), "edge"), weights, "valid")
+    mean_p = np.convolve(np.pad(p, (w-1, 0), "edge"), weights, "valid")
 
     return mean_p
 
@@ -138,5 +141,6 @@ def apply_filter(df: pd.DataFrame, columns: List[str],
     return df
 
 if __name__ == "__main__":
-    df = pd.read_csv('./data/kospi.csv')
-    df = apply_filter(df, columns=["close"], filter_method="guided", window_size=31)
+    ticker = "^KS11"
+    df = pdr.get_data_yahoo(ticker, start="2000-01-01", end="2023-04-27")
+    df = apply_filter(df, columns=["Adj Close"], filter_method="moving_average", window_size=31)
